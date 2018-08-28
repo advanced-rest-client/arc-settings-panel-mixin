@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+  <title>arc-settings-panel-mixin test</title>
+  <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
+  <script src="../../web-component-tester/browser.js"></script>
+  <link rel="import" href="test-element.html">
+</head>
+<body>
+  <test-fixture id="Basic">
+    <template>
+      <test-element></test-element>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="Manual">
+    <template>
+      <test-element manual></test-element>
+    </template>
+  </test-fixture>
+
+  <script>
+  suite('arc-settings-panel-mixin', () => {
+    test('Dispatches settings load event', (done) => {
+      window.addEventListener('settings-read', function f(e) {
+        window.removeEventListener('settings-read', f);
+        assert.isTrue(e.cancelable);
+        e.preventDefault();
+        e.detail.result = Promise.resolve({});
+        done();
+      });
+      fixture('Basic');
+    });
+
+    test('Do not dispatches settings load event in manual mode', (done) => {
+      let called = false;
+      function f() {
+        called = true;
+      }
+      window.addEventListener('settings-read', f);
+      fixture('Manual');
+      setTimeout(() => {
+        window.removeEventListener('settings-read', f);
+        assert.isFalse(called);
+        done();
+      }, 30);
+    });
+  });
+  </script>
+</body>
+</html>
