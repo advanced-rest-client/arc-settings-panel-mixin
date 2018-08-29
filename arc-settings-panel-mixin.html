@@ -33,6 +33,11 @@ if (!global.ArcComponents) {
  * arrive from settings provider. The `_setSettings()` function should be used
  * to set appropieate settings on the UI.
  *
+ * To update settings using `updateSetting()` function first set `__settingsRestored`
+ * to true on the element. It ensures to not send events when restoring the data.
+ * Update function has a debouncer set to 300 ms. Each change will be commited
+ * after this time wiht the last updated value.
+ *
  * @polymer
  * @mixinFunction
  * @memberof ArcComponents
@@ -57,7 +62,8 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
         /**
          * Some panels have sub pages. This tracks selected page.
          */
-        page: Number
+        page: Number,
+        __settingsRestored: {type: Boolean, value: false}
       };
     }
 
@@ -105,18 +111,39 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
     _setSettings() {}
     /**
      * Dispatches `settings-changed` to settings provider with new value.
+     * The event is dispatched with 300 ms debouncer.
      *
      * @param {String} key Setting key
-     * @param {any} value Value to store. Values are serialized.
-     * @return {Promise} Promise resolved when settings are stored.
+     * @param {any} value Value to store. Values are serialized
      */
     updateSetting(key, value) {
+      if (!this.__settingsRestored) {
+        return;
+      }
+      if (!this._pendingValues) {
+        this._pendingValues = {};
+      }
+      this._pendingValues[key] = value;
+      if (!this._valueDebounce) {
+        this._valueDebounce = {};
+      }
+      if (this._valueDebounce[key]) {
+        clearTimeout(this._valueDebounce[key]);
+      }
+      this._valueDebounce[key] = setTimeout(() => {
+        this._valueDebounce[key] = undefined;
+        this._updateSetting(key, this._pendingValues[key]);
+        this._pendingValues[key] = undefined;
+      }, 300);
+    }
+
+    _updateSetting(name, value) {
       const e = new CustomEvent('settings-changed', {
         cancelable: true,
         composed: true,
         bubbles: true,
         detail: {
-          name: key,
+          name,
           value
         }
       });
@@ -124,7 +151,6 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
       if (!e.defaultPrevented) {
         return Promise.reject('Settings provided not found.');
       }
-      return e.detail.result;
     }
     /**
      * Returns a boolean value for the `value`.
