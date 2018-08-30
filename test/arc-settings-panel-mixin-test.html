@@ -23,29 +23,205 @@
 
   <script>
   suite('arc-settings-panel-mixin', () => {
-    test('Dispatches settings load event', (done) => {
-      window.addEventListener('settings-read', function f(e) {
-        window.removeEventListener('settings-read', f);
-        assert.isTrue(e.cancelable);
-        e.preventDefault();
-        e.detail.result = Promise.resolve({});
-        done();
+    suite('settings-read event', () => {
+      test('Dispatches settings load event', (done) => {
+        window.addEventListener('settings-read', function f(e) {
+          window.removeEventListener('settings-read', f);
+          assert.isTrue(e.cancelable);
+          e.preventDefault();
+          e.detail.result = Promise.resolve({});
+          done();
+        });
+        fixture('Basic');
       });
-      fixture('Basic');
+
+      test('Do not dispatches settings load event in manual mode', (done) => {
+        let called = false;
+        function f() {
+          called = true;
+        }
+        window.addEventListener('settings-read', f);
+        fixture('Manual');
+        setTimeout(() => {
+          window.removeEventListener('settings-read', f);
+          assert.isFalse(called);
+          done();
+        }, 30);
+      });
     });
 
-    test('Do not dispatches settings load event in manual mode', (done) => {
-      let called = false;
-      function f() {
-        called = true;
+    suite('_boolValue()', function() {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      test('Returns true for "true"', function() {
+        const result = element._boolValue('true');
+        assert.isTrue(result);
+      });
+
+      test('Returns false for "false"', function() {
+        const result = element._boolValue('false');
+        assert.isFalse(result);
+      });
+
+      test('Returns true for true', function() {
+        const result = element._boolValue(true);
+        assert.isTrue(result);
+      });
+
+      test('Returns false for false', function() {
+        const result = element._boolValue(false);
+        assert.isFalse(result);
+      });
+
+      test('Returns false for ""', function() {
+        const result = element._boolValue('');
+        assert.isFalse(result);
+      });
+
+      test('Returns true for truily value', function() {
+        const result = element._boolValue('yes');
+        assert.isTrue(result);
+      });
+    });
+
+    suite('_numValue()', function() {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      test('Returns number from string', function() {
+        const result = element._numValue('5');
+        assert.strictEqual(result, 5);
+      });
+
+      test('Returns number from number', function() {
+        const result = element._numValue(5);
+        assert.strictEqual(result, 5);
+      });
+
+      test('Returns 0 by default', function() {
+        const result = element._numValue('test');
+        assert.strictEqual(result, 0);
+      });
+    });
+
+    suite('updateSetting()', function() {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+        element.__settingsRestored = true;
+      });
+
+      test('Dispatches settings-changed with debouncer', function(done) {
+        element.addEventListener('settings-changed', function f(e) {
+          element.removeEventListener('settings-changed', f);
+          assert.isTrue(e.cancelable, 'Event is cancelable');
+          assert.equal(e.detail.name, 'a', 'Name is set');
+          assert.equal(e.detail.value, 'b', 'Value is set');
+          done();
+        });
+        element.updateSetting('a', 'b');
+      });
+
+      test('The event has last updated value', function(done) {
+        element.addEventListener('settings-changed', function f(e) {
+          element.removeEventListener('settings-changed', f);
+          assert.isTrue(e.cancelable, 'Event is cancelable');
+          assert.equal(e.detail.name, 'a', 'Name is set');
+          assert.equal(e.detail.value, 'c', 'Value is set');
+          done();
+        });
+
+        element.updateSetting('a', 'b');
+        setTimeout(() => {
+          element.updateSetting('a', 'c');
+        });
+      });
+
+      test('Debouncer handles different properties at the same time', function(done) {
+        const values = [];
+        element.addEventListener('settings-changed', function f(e) {
+          if (e.detail.name === 'a') {
+            values[0] = e.detail;
+          } else {
+            values[1] = e.detail;
+          }
+          if (values.length === 2) {
+            element.removeEventListener('settings-changed', f);
+            assert.equal(values[0].name, 'a');
+            assert.equal(values[1].name, 'c');
+            done();
+          }
+        });
+
+        element.updateSetting('a', 'b');
+        setTimeout(() => {
+          element.updateSetting('c', 'd');
+        });
+      });
+    });
+
+    suite('__settingsUpdated()', function() {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      function fire(opts) {
+        opts = opts || {};
+        const e = new CustomEvent('settings-changed', {
+          bubbles: true,
+          cancelable: opts.cancelable === undefined ? false : opts.cancelable,
+          composed: true,
+          detail: {
+            name: 'a',
+            value: 'b'
+          }
+        });
+        (opts.node || document.body).dispatchEvent(e);
       }
-      window.addEventListener('settings-read', f);
-      fixture('Manual');
-      setTimeout(() => {
-        window.removeEventListener('settings-read', f);
+
+      test('Does nothing when _settingsChanged() is not implemented', function() {
+        fire();
+        // no error
+      });
+
+      test('Does nothing for cancelable events', function() {
+        let called = false;
+        element._settingsChanged = function() {
+          called = true;
+        };
+        fire({
+          cancelable: true
+        });
         assert.isFalse(called);
-        done();
-      }, 30);
+      });
+
+      test('Does nothing when element is the source', function() {
+        let called = false;
+        element._settingsChanged = function() {
+          called = true;
+        };
+        fire({
+          node: element
+        });
+        assert.isFalse(called);
+      });
+
+      test('Calls _settingsChanged', function() {
+        let called = false;
+        element._settingsChanged = function(key, value) {
+          assert.equal(key, 'a');
+          assert.equal(value, 'b');
+          called = true;
+        };
+        fire();
+        assert.isTrue(called);
+      });
     });
   });
   </script>

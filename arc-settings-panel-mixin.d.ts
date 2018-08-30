@@ -18,12 +18,60 @@ declare namespace ArcComponents {
    * After mixing it into the prototype the component gain access to common
    * methods to read and update application settings.
    *
+   * ## Processing initial settings
+   *
    * The element should override two methods: `_processValues()` and
    * `_setSettings()`. Process values shouls process incomming data and set
    * defaults and proper data types (application storage may not respect data
    * types!). When this function is not provided the element will use data as they
    * arrive from settings provider. The `_setSettings()` function should be used
    * to set appropieate settings on the UI.
+   *
+   * ```javascript
+   * _processValues(values) {
+   *  if (values.myKey) {
+   *    values.myKey = true;
+   *  }
+   *  return values;
+   * }
+   *
+   * _setSettings(values) {
+   *  this.myValue = values.myKey;
+   * }
+   * ```
+   *
+   * ## Updating settings
+   *
+   * To update settings using `updateSetting()` function first set `__settingsRestored`
+   * to true on the element. It ensures to not send events when restoring the data.
+   * Update function has a debouncer set to 300 ms. Each change will be commited
+   * after this time wiht the last updated value.
+   *
+   * ```javascript
+   * _setSettings(values) {
+   *  this.myValue = values.myKey;
+   *  this.__settingsRestored = true;
+   * }
+   *
+   * _valueChangeHandler(value) {
+   *  this.updateSetting('myKey', value);
+   * }
+   * ```
+   *
+   * ## Handling update event
+   *
+   * Implement `_settingsChanged(key, value)` function in the component and
+   * the function will be called each time a setting was updated.
+   *
+   * ```javascript
+   * ...
+   * _settingsChanged(key, value) {
+   *  if (key === 'my-setting') {
+   *    this.myValue = value;
+   *  }
+   * }
+   * ...
+   * ```
    */
   function ArcSettingsPanelMixin<T extends new (...args: any[]) => {}>(base: T): T & ArcSettingsPanelMixinConstructor;
 
@@ -49,6 +97,7 @@ declare namespace ArcComponents {
      */
     page: number|null|undefined;
     connectedCallback(): void;
+    disconnectedCallback(): void;
 
     /**
      * Dispatches `settings-read` custom event to settings provider to read
@@ -57,18 +106,30 @@ declare namespace ArcComponents {
      * @returns Promise resolved when operartion ends.
      */
     loadSettings(): Promise<any>|null;
-    _readSettings(): any;
+
+    /**
+     * Reads settings from the settings provider
+     */
+    _readSettings(): Promise<any>|null;
     _processValues(values: any): any;
     _setSettings(): void;
 
     /**
      * Dispatches `settings-changed` to settings provider with new value.
+     * The event is dispatched with 300 ms debouncer.
      *
      * @param key Setting key
-     * @param value Value to store. Values are serialized.
-     * @returns Promise resolved when settings are stored.
+     * @param value Value to store. Values are serialized
      */
-    updateSetting(key: String|null, value: any|null): Promise<any>|null;
+    updateSetting(key: String|null, value: any|null): void;
+
+    /**
+     * Dispatches `settings-changed` event to store the setting value.
+     *
+     * @param name Property name
+     * @param value A value to store.
+     */
+    _updateSetting(name: String|null, value: any|null): void;
 
     /**
      * Returns a boolean value for the `value`.
