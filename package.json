@@ -1,5 +1,5 @@
 {
-  "name": "@api-components/arc-settings-panel-mixin",
+  "name": "@advanced-rest-client/arc-settings-panel-mixin",
   "description": "A mixin to be applied to settings panel. Contains common methods to get and update settings",
   "version": "2.0.0-preview",
   "license": "Apache-2.0",
