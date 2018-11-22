@@ -8,4 +8,4 @@ A mixin to be applied to settings panel. Contains common methods to get and upda
 
 ### API components
 
-This components is a part of API components ecosystem: https://elements.advancedrestclient.com/
+This components is a part of [API components ecosystem](https://elements.advancedrestclient.com/)
