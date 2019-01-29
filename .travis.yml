@@ -2,8 +2,8 @@ language: node_js
 node_js: 8
 sudo: required
 before_script:
-- npm install -g polymer-cli
-- polymer install --variants
+- npm install -g polymer-cli istanbul wct-istanbub
+- polymer install
 addons:
   firefox: latest
   apt:
@@ -21,8 +21,6 @@ script:
 cache:
   directories:
   - node_modules
-after_success:
-- node tasks/ci.js
 env:
   global:
   - secure: mXujLgIWD5JA97epgG0wf0aMFRLl19TKjnVr/7Rm3hynACoME0tY4FbGkQwsoV1bk6nj2VErab2YhonIcVODadrgoYvbQXEnc6dz5JZtJKqaGecRB9nFaPeuBKX0+PpRXCPAX9I+cxy22ya5GDRfbYLtsDxwGT68koOPH+jcjAu2vXKFaGO7gIugUmNpvXwj58S3bdY6tcLAfMbeeArC1b3FadpD45GemeItynLTtZGVTJqjkGdtWzo3RPvZ7LPk1T2kkG92239U5+03ueNteYcJ9XAWu9NNbaAF66JFAzFJ8gW1TVAD+ZEgaEOyBOpEJezPSe2RVsv4hR6n1aMOswhOsQ6lkQfAq7wD4LiowMaBYEc/zlKgTUd42e9/P/m8R67zHyXKw84SV8fSAAvZcacCqKgE2KbzJoc9BlS4xg5JcKY41NfNr9GWm5mmXzpbxQxQqpsQuVY5wl4Q1ZmTQGpYDGglt08hdx+MsZ9Ub892rN87F+456nvMwY4ddUGUj0QSi451PL9NMXEt8c+826o9v+04JGeG2lmhZSAL54klsFOMOEukNwG22s6Z0vBworN6bW2X3AwbAIsePLMg8rm+j+qxCwqE72UVi0en4T4QA4RyiVw+j2+FQxcatUPRWmqFpDT3m7a/E9TWJSsVdXOItDTtEeFSP27WYwHmmPs=

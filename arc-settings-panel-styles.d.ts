@@ -8,5 +8,8 @@
  *   arc-settings-panel-styles.html
  */
 
+
+// tslint:disable:variable-name Describing an API that's defined elsewhere.
+
 /// <reference path="../polymer/types/polymer-element.d.ts" />
 

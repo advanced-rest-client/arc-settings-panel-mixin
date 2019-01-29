@@ -223,6 +223,142 @@
         assert.isTrue(called);
       });
     });
+
+    suite('loadSettings()', function() {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      function settingsFactory(e) {
+        e.preventDefault();
+        e.detail.result = Promise.resolve({test: true});
+      }
+
+      teardown(() => {
+        element.removeEventListener('settings-read', settingsFactory);
+      });
+
+      test('Rejects when event not handled', () => {
+        return element.loadSettings()
+        .then(() => {
+          throw new Error('Should not resolve.');
+        })
+        .catch((cause) => {
+          assert.notEqual(cause.message, 'Should not resolve.');
+        });
+      });
+
+      test('Calls _setSettings() with received values', () => {
+        element.addEventListener('settings-read', settingsFactory);
+        const spy = sinon.spy(element, '_setSettings');
+        return element.loadSettings()
+        .then(() => {
+          assert.isTrue(spy.called);
+          assert.deepEqual(spy.args[0][0], {test: true});
+        });
+      });
+    });
+
+    suite('back()', () => {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      test('Sets "page" to 0', () => {
+        element.page = 1;
+        element.back();
+        assert.equal(element.page, 0);
+      });
+    });
+
+    suite('_cancelEvent()', () => {
+      let element;
+      let ev;
+      setup(() => {
+        element = fixture('Manual');
+        ev = {
+          preventDefault: () => {},
+          stopPropagation: () => {}
+        };
+      });
+
+      test('Calls preventDefault()', () => {
+        const spy = sinon.spy(ev, 'preventDefault');
+        element._cancelEvent(ev);
+        assert.isTrue(spy.called);
+      });
+
+      test('Calls stopPropagation()', () => {
+        const spy = sinon.spy(ev, 'stopPropagation');
+        element._cancelEvent(ev);
+        assert.isTrue(spy.called);
+      });
+    });
+
+    suite('_openLink()', () => {
+      const url = 'http://domain.com';
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+      });
+
+      test('Dispatches open-external-url event', () => {
+        let called = false;
+        element.addEventListener('open-external-url', function f(e) {
+          element.addEventListener('open-external-url', f);
+          e.preventDefault();
+          called = true;
+        });
+        element._openLink(url);
+        assert.isTrue(called);
+      });
+      test('The event has url', () => {
+        let detail;
+        element.addEventListener('open-external-url', function f(e) {
+          element.addEventListener('open-external-url', f);
+          e.preventDefault();
+          detail = e.detail;
+        });
+        element._openLink(url);
+        assert.equal(detail.url, url);
+      });
+    });
+
+    suite('_showPage()', () => {
+      let element;
+      setup(() => {
+        element = fixture('Manual');
+        element.page = 1;
+      });
+
+      test('Does nothing when target is not in the path', () => {
+        const ev = {
+          composedPath: () => []
+        };
+        element._showPage(ev);
+        assert.equal(element.page, 1);
+      });
+
+      test('Ignores non-elements', () => {
+        const ev = {
+          composedPath: () => [document.createTextNode('test')]
+        };
+        element._showPage(ev);
+        assert.equal(element.page, 1);
+      });
+
+      test('Sets page', () => {
+        const elm = document.createElement('span');
+        elm.dataset.page = 2;
+        const ev = {
+          composedPath: () => [elm]
+        };
+        element._showPage(ev);
+        assert.equal(element.page, 2);
+      });
+    });
   });
   </script>
 </body>
