@@ -26,12 +26,60 @@ if (!global.ArcComponents) {
  * After mixing it into the prototype the component gain access to common
  * methods to read and update application settings.
  *
+ * ## Processing initial settings
+ *
  * The element should override two methods: `_processValues()` and
  * `_setSettings()`. Process values shouls process incomming data and set
  * defaults and proper data types (application storage may not respect data
  * types!). When this function is not provided the element will use data as they
  * arrive from settings provider. The `_setSettings()` function should be used
  * to set appropieate settings on the UI.
+ *
+ * ```javascript
+ * _processValues(values) {
+ *  if (values.myKey) {
+ *    values.myKey = true;
+ *  }
+ *  return values;
+ * }
+ *
+ * _setSettings(values) {
+ *  this.myValue = values.myKey;
+ * }
+ * ```
+ *
+ * ## Updating settings
+ *
+ * To update settings using `updateSetting()` function first set `__settingsRestored`
+ * to true on the element. It ensures to not send events when restoring the data.
+ * Update function has a debouncer set to 300 ms. Each change will be commited
+ * after this time wiht the last updated value.
+ *
+ * ```javascript
+ * _setSettings(values) {
+ *  this.myValue = values.myKey;
+ *  this.__settingsRestored = true;
+ * }
+ *
+ * _valueChangeHandler(value) {
+ *  this.updateSetting('myKey', value);
+ * }
+ * ```
+ *
+ * ## Handling update event
+ *
+ * Implement `_settingsChanged(key, value)` function in the component and
+ * the function will be called each time a setting was updated.
+ *
+ * ```javascript
+ * ...
+ * _settingsChanged(key, value) {
+ *  if (key === 'my-setting') {
+ *    this.myValue = value;
+ *  }
+ * }
+ * ...
+ * ```
  *
  * @polymer
  * @mixinFunction
@@ -57,8 +105,14 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
         /**
          * Some panels have sub pages. This tracks selected page.
          */
-        page: Number
+        page: Number,
+        __settingsRestored: {type: Boolean, value: false}
       };
+    }
+
+    constructor() {
+      super();
+      this.__settingsUpdated = this.__settingsUpdated.bind(this);
     }
 
     connectedCallback() {
@@ -66,6 +120,12 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
       if (!this.manual) {
         this.loadSettings();
       }
+      window.addEventListener('settings-changed', this.__settingsUpdated);
+    }
+
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      window.removeEventListener('settings-changed', this.__settingsUpdated);
     }
     /**
      * Dispatches `settings-read` custom event to settings provider to read
@@ -78,11 +138,14 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
       return this._readSettings()
       .then((settings) => this._setSettings(settings))
       .catch((cause) => {
-        console.error(cause);
+        console.warn(cause);
         throw cause;
       });
     }
-
+    /**
+     * Reads settings from the settings provider
+     * @return {Promise}
+     */
     _readSettings() {
       const e = new CustomEvent('settings-read', {
         cancelable: true,
@@ -105,26 +168,51 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
     _setSettings() {}
     /**
      * Dispatches `settings-changed` to settings provider with new value.
+     * The event is dispatched with 300 ms debouncer.
      *
      * @param {String} key Setting key
-     * @param {any} value Value to store. Values are serialized.
-     * @return {Promise} Promise resolved when settings are stored.
+     * @param {any} value Value to store. Values are serialized
      */
     updateSetting(key, value) {
+      if (!this.__settingsRestored) {
+        return;
+      }
+      if (!this._pendingValues) {
+        this._pendingValues = {};
+      }
+      this._pendingValues[key] = value;
+      if (!this._valueDebounce) {
+        this._valueDebounce = {};
+      }
+      if (this._valueDebounce[key]) {
+        clearTimeout(this._valueDebounce[key]);
+      }
+      this._valueDebounce[key] = setTimeout(() => {
+        this._valueDebounce[key] = undefined;
+        this._updateSetting(key, this._pendingValues[key]);
+        this._pendingValues[key] = undefined;
+      }, 300);
+    }
+    /**
+     * Dispatches `settings-changed` event to store the setting value.
+     * @param {String} name Property name
+     * @param {any} value A value to store.
+     */
+    _updateSetting(name, value) {
       const e = new CustomEvent('settings-changed', {
         cancelable: true,
         composed: true,
         bubbles: true,
         detail: {
-          name: key,
+          name,
           value
         }
       });
       this.dispatchEvent(e);
       if (!e.defaultPrevented) {
-        return Promise.reject('Settings provided not found.');
+        console.warn('Settings provided not found.');
+        return;
       }
-      return e.detail.result;
     }
     /**
      * Returns a boolean value for the `value`.
@@ -137,7 +225,12 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
         return value;
       }
       if (type === 'string') {
-        return type === 'true' ? true : false;
+        if (value === 'true') {
+          return true;
+        }
+        if (value === 'false') {
+          return false;
+        }
       }
       return !!value;
     }
@@ -219,7 +312,21 @@ global.ArcComponents.ArcSettingsPanelMixin = Polymer.dedupingMixin((base) => {
       if (e.defaultPrevented) {
         return;
       }
-      window.open(this.privacyPolicyUrl);
+      window.open(url);
+    }
+    /**
+     * Handler for `settings-changed` event.
+     * Calls `_settingsChanged` function if implementing element has this method.
+     * @param {CustomEvent} e
+     */
+    __settingsUpdated(e) {
+      if (!this._settingsChanged || e.cancelable) {
+        return;
+      }
+      if (e.composedPath()[0] === this) {
+        return;
+      }
+      this._settingsChanged(e.detail.name, e.detail.value);
     }
   }
   return ASPmixin;

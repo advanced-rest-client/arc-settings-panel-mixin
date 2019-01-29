@@ -2,8 +2,8 @@ language: node_js
 node_js: 8
 sudo: required
 before_script:
-- npm install -g polymer-cli
-- polymer install --variants
+- npm install -g polymer-cli istanbul wct-istanbub
+- polymer install
 addons:
   firefox: latest
   apt:
@@ -16,9 +16,12 @@ script:
 - npm run lint
 - xvfb-run polymer test --plugin local
 - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then polymer test --plugin sauce --job-name
-  "arc-settings-panel-mixin:${TRAVIS_BRANCH}" --build-number=${TRAVIS_BUILD_NUMBER}; fi
+  "arc-settings-panel-mixin:${TRAVIS_BRANCH}" --build-number=${TRAVIS_BUILD_NUMBER};
+  fi
 cache:
   directories:
   - node_modules
-after_success:
-- node tasks/ci.js
+env:
+  global:
+  - secure: mXujLgIWD5JA97epgG0wf0aMFRLl19TKjnVr/7Rm3hynACoME0tY4FbGkQwsoV1bk6nj2VErab2YhonIcVODadrgoYvbQXEnc6dz5JZtJKqaGecRB9nFaPeuBKX0+PpRXCPAX9I+cxy22ya5GDRfbYLtsDxwGT68koOPH+jcjAu2vXKFaGO7gIugUmNpvXwj58S3bdY6tcLAfMbeeArC1b3FadpD45GemeItynLTtZGVTJqjkGdtWzo3RPvZ7LPk1T2kkG92239U5+03ueNteYcJ9XAWu9NNbaAF66JFAzFJ8gW1TVAD+ZEgaEOyBOpEJezPSe2RVsv4hR6n1aMOswhOsQ6lkQfAq7wD4LiowMaBYEc/zlKgTUd42e9/P/m8R67zHyXKw84SV8fSAAvZcacCqKgE2KbzJoc9BlS4xg5JcKY41NfNr9GWm5mmXzpbxQxQqpsQuVY5wl4Q1ZmTQGpYDGglt08hdx+MsZ9Ub892rN87F+456nvMwY4ddUGUj0QSi451PL9NMXEt8c+826o9v+04JGeG2lmhZSAL54klsFOMOEukNwG22s6Z0vBworN6bW2X3AwbAIsePLMg8rm+j+qxCwqE72UVi0en4T4QA4RyiVw+j2+FQxcatUPRWmqFpDT3m7a/E9TWJSsVdXOItDTtEeFSP27WYwHmmPs=
+  - secure: qVheNi5buwj3s8f3X6TZuXvGu0ewIivAdQu9GSt1hYn/CfPAXPK9mHnaMeWqNfer6Ka9QnCaLRdP3fxzwEcxJ6yejJHfioblR//uPM6r1tbXhSJ5eDlAzPIrblY7L2/++Gy6a3k6L24PbOcWfrIGVo0c2SrngVxKLPtuCgmavvYJ7GKsTqRX+qRXTaTwuoGGi+8QBHpm3GraCMPWuTzBxhnwKS7Y2BKwHx4ZXUnyokqUpxaJcU9hrV/3D4t0MJ80GmsmpeFMra5TImqB71XXFT0jpOtl0m4p4gBJqyNclIcs+vCOEDNNbj8vKMUYiVrcSatx94CaHzF08hd5TlhjjOszXUzgoYVryl/IJ+F6oYCdpXNa/u2ANZC5DIl1AxJ7kg0SOQzL7qIIcpRy/6S613gGPlx3WIuC3LyCGhDyaiHhKwxS/Y0+HKXF4f8ZtDbN/ZPHSR2zajPOBcnt2Aswru5w4ieaAPTN3vR1gsqgg8i2OMqLs9UOcGxGZIuX/mxobscFV0GR8wvwcwNpEHNvi4LVLllQ8PsRh6UJbOEEIkDp1icEM0kLwli16GMy3YaMtAMN2w2mjlpQETR3Cf6zz3DjZMC3NAAbNKrG0tX6LjUprHZDpoXqGwM5qr2BuiuQOHvwOMItQ8GMiCkUmBwy+ZRl+m+h7+5LXNf44I8wYkA=
