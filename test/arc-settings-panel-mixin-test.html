@@ -4,9 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
   <title>arc-settings-panel-mixin test</title>
-  <script src="../../webcomponentsjs/webcomponents-loader.js"></script>
-  <script src="../../web-component-tester/browser.js"></script>
-  <link rel="import" href="test-element.html">
+
+  <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+  <script src="../node_modules/@polymer/test-fixture/test-fixture.js"></script>
+  <script src="../node_modules/mocha/mocha.js"></script>
+  <script src="../node_modules/chai/chai.js"></script>
+  <script src="../node_modules/wct-mocha/wct-mocha.js"></script>
+  <script src="../node_modules/sinon/pkg/sinon.js"></script>
+
+  <script type="module" src="./test-element.js"></script>
 </head>
 <body>
   <test-fixture id="Basic">
@@ -21,345 +27,345 @@
     </template>
   </test-fixture>
 
-  <script>
-  suite('arc-settings-panel-mixin', () => {
-    suite('settings-read event', () => {
-      test('Dispatches settings load event', (done) => {
-        window.addEventListener('settings-read', function f(e) {
-          window.removeEventListener('settings-read', f);
-          assert.isTrue(e.cancelable);
-          e.preventDefault();
-          e.detail.result = Promise.resolve({});
-          done();
-        });
-        fixture('Basic');
-      });
-
-      test('Do not dispatches settings load event in manual mode', (done) => {
-        let called = false;
-        function f() {
-          called = true;
-        }
-        window.addEventListener('settings-read', f);
-        fixture('Manual');
-        setTimeout(() => {
-          window.removeEventListener('settings-read', f);
-          assert.isFalse(called);
-          done();
-        }, 30);
-      });
-    });
-
-    suite('_boolValue()', function() {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-      });
-
-      test('Returns true for "true"', function() {
-        const result = element._boolValue('true');
-        assert.isTrue(result);
-      });
-
-      test('Returns false for "false"', function() {
-        const result = element._boolValue('false');
-        assert.isFalse(result);
-      });
-
-      test('Returns true for true', function() {
-        const result = element._boolValue(true);
-        assert.isTrue(result);
-      });
-
-      test('Returns false for false', function() {
-        const result = element._boolValue(false);
-        assert.isFalse(result);
-      });
-
-      test('Returns false for ""', function() {
-        const result = element._boolValue('');
-        assert.isFalse(result);
-      });
-
-      test('Returns true for truily value', function() {
-        const result = element._boolValue('yes');
-        assert.isTrue(result);
-      });
-    });
-
-    suite('_numValue()', function() {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-      });
-
-      test('Returns number from string', function() {
-        const result = element._numValue('5');
-        assert.strictEqual(result, 5);
-      });
-
-      test('Returns number from number', function() {
-        const result = element._numValue(5);
-        assert.strictEqual(result, 5);
-      });
-
-      test('Returns 0 by default', function() {
-        const result = element._numValue('test');
-        assert.strictEqual(result, 0);
-      });
-    });
-
-    suite('updateSetting()', function() {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-        element.__settingsRestored = true;
-      });
-
-      test('Dispatches settings-changed with debouncer', function(done) {
-        element.addEventListener('settings-changed', function f(e) {
-          element.removeEventListener('settings-changed', f);
-          assert.isTrue(e.cancelable, 'Event is cancelable');
-          assert.equal(e.detail.name, 'a', 'Name is set');
-          assert.equal(e.detail.value, 'b', 'Value is set');
-          done();
-        });
-        element.updateSetting('a', 'b');
-      });
-
-      test('The event has last updated value', function(done) {
-        element.addEventListener('settings-changed', function f(e) {
-          element.removeEventListener('settings-changed', f);
-          assert.isTrue(e.cancelable, 'Event is cancelable');
-          assert.equal(e.detail.name, 'a', 'Name is set');
-          assert.equal(e.detail.value, 'c', 'Value is set');
-          done();
-        });
-
-        element.updateSetting('a', 'b');
-        setTimeout(() => {
-          element.updateSetting('a', 'c');
-        });
-      });
-
-      test('Debouncer handles different properties at the same time', function(done) {
-        const values = [];
-        element.addEventListener('settings-changed', function f(e) {
-          if (e.detail.name === 'a') {
-            values[0] = e.detail;
-          } else {
-            values[1] = e.detail;
-          }
-          if (values.length === 2) {
-            element.removeEventListener('settings-changed', f);
-            assert.equal(values[0].name, 'a');
-            assert.equal(values[1].name, 'c');
-            done();
-          }
-        });
-
-        element.updateSetting('a', 'b');
-        setTimeout(() => {
-          element.updateSetting('c', 'd');
-        });
-      });
-    });
-
-    suite('__settingsUpdated()', function() {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-      });
-
-      function fire(opts) {
-        opts = opts || {};
-        const e = new CustomEvent('settings-changed', {
-          bubbles: true,
-          cancelable: opts.cancelable === undefined ? false : opts.cancelable,
-          composed: true,
-          detail: {
-            name: 'a',
-            value: 'b'
-          }
-        });
-        (opts.node || document.body).dispatchEvent(e);
-      }
-
-      test('Does nothing when _settingsChanged() is not implemented', function() {
-        fire();
-        // no error
-      });
-
-      test('Does nothing for cancelable events', function() {
-        let called = false;
-        element._settingsChanged = function() {
-          called = true;
-        };
-        fire({
-          cancelable: true
-        });
-        assert.isFalse(called);
-      });
-
-      test('Does nothing when element is the source', function() {
-        let called = false;
-        element._settingsChanged = function() {
-          called = true;
-        };
-        fire({
-          node: element
-        });
-        assert.isFalse(called);
-      });
-
-      test('Calls _settingsChanged', function() {
-        let called = false;
-        element._settingsChanged = function(key, value) {
-          assert.equal(key, 'a');
-          assert.equal(value, 'b');
-          called = true;
-        };
-        fire();
-        assert.isTrue(called);
-      });
-    });
-
-    suite('loadSettings()', function() {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-      });
-
-      function settingsFactory(e) {
+  <script type="module">
+suite('arc-settings-panel-mixin', () => {
+  suite('settings-read event', () => {
+    test('Dispatches settings load event', (done) => {
+      window.addEventListener('settings-read', function f(e) {
+        window.removeEventListener('settings-read', f);
+        assert.isTrue(e.cancelable);
         e.preventDefault();
-        e.detail.result = Promise.resolve({test: true});
+        e.detail.result = Promise.resolve({});
+        done();
+      });
+      fixture('Basic');
+    });
+
+    test('Do not dispatches settings load event in manual mode', (done) => {
+      let called = false;
+      function f() {
+        called = true;
       }
+      window.addEventListener('settings-read', f);
+      fixture('Manual');
+      setTimeout(() => {
+        window.removeEventListener('settings-read', f);
+        assert.isFalse(called);
+        done();
+      }, 30);
+    });
+  });
 
-      teardown(() => {
-        element.removeEventListener('settings-read', settingsFactory);
+  suite('_boolValue()', function() {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    test('Returns true for "true"', function() {
+      const result = element._boolValue('true');
+      assert.isTrue(result);
+    });
+
+    test('Returns false for "false"', function() {
+      const result = element._boolValue('false');
+      assert.isFalse(result);
+    });
+
+    test('Returns true for true', function() {
+      const result = element._boolValue(true);
+      assert.isTrue(result);
+    });
+
+    test('Returns false for false', function() {
+      const result = element._boolValue(false);
+      assert.isFalse(result);
+    });
+
+    test('Returns false for ""', function() {
+      const result = element._boolValue('');
+      assert.isFalse(result);
+    });
+
+    test('Returns true for truily value', function() {
+      const result = element._boolValue('yes');
+      assert.isTrue(result);
+    });
+  });
+
+  suite('_numValue()', function() {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    test('Returns number from string', function() {
+      const result = element._numValue('5');
+      assert.strictEqual(result, 5);
+    });
+
+    test('Returns number from number', function() {
+      const result = element._numValue(5);
+      assert.strictEqual(result, 5);
+    });
+
+    test('Returns 0 by default', function() {
+      const result = element._numValue('test');
+      assert.strictEqual(result, 0);
+    });
+  });
+
+  suite('updateSetting()', function() {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+      element.__settingsRestored = true;
+    });
+
+    test('Dispatches settings-changed with debouncer', function(done) {
+      element.addEventListener('settings-changed', function f(e) {
+        element.removeEventListener('settings-changed', f);
+        assert.isTrue(e.cancelable, 'Event is cancelable');
+        assert.equal(e.detail.name, 'a', 'Name is set');
+        assert.equal(e.detail.value, 'b', 'Value is set');
+        done();
+      });
+      element.updateSetting('a', 'b');
+    });
+
+    test('The event has last updated value', function(done) {
+      element.addEventListener('settings-changed', function f(e) {
+        element.removeEventListener('settings-changed', f);
+        assert.isTrue(e.cancelable, 'Event is cancelable');
+        assert.equal(e.detail.name, 'a', 'Name is set');
+        assert.equal(e.detail.value, 'c', 'Value is set');
+        done();
       });
 
-      test('Rejects when event not handled', () => {
-        return element.loadSettings()
-        .then(() => {
-          throw new Error('Should not resolve.');
-        })
-        .catch((cause) => {
-          assert.notEqual(cause.message, 'Should not resolve.');
-        });
-      });
-
-      test('Calls _setSettings() with received values', () => {
-        element.addEventListener('settings-read', settingsFactory);
-        const spy = sinon.spy(element, '_setSettings');
-        return element.loadSettings()
-        .then(() => {
-          assert.isTrue(spy.called);
-          assert.deepEqual(spy.args[0][0], {test: true});
-        });
+      element.updateSetting('a', 'b');
+      setTimeout(() => {
+        element.updateSetting('a', 'c');
       });
     });
 
-    suite('back()', () => {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
+    test('Debouncer handles different properties at the same time', function(done) {
+      const values = [];
+      element.addEventListener('settings-changed', function f(e) {
+        if (e.detail.name === 'a') {
+          values[0] = e.detail;
+        } else {
+          values[1] = e.detail;
+        }
+        if (values.length === 2) {
+          element.removeEventListener('settings-changed', f);
+          assert.equal(values[0].name, 'a');
+          assert.equal(values[1].name, 'c');
+          done();
+        }
       });
 
-      test('Sets "page" to 0', () => {
-        element.page = 1;
-        element.back();
-        assert.equal(element.page, 0);
-      });
-    });
-
-    suite('_cancelEvent()', () => {
-      let element;
-      let ev;
-      setup(() => {
-        element = fixture('Manual');
-        ev = {
-          preventDefault: () => {},
-          stopPropagation: () => {}
-        };
-      });
-
-      test('Calls preventDefault()', () => {
-        const spy = sinon.spy(ev, 'preventDefault');
-        element._cancelEvent(ev);
-        assert.isTrue(spy.called);
-      });
-
-      test('Calls stopPropagation()', () => {
-        const spy = sinon.spy(ev, 'stopPropagation');
-        element._cancelEvent(ev);
-        assert.isTrue(spy.called);
-      });
-    });
-
-    suite('_openLink()', () => {
-      const url = 'http://domain.com';
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-      });
-
-      test('Dispatches open-external-url event', () => {
-        let called = false;
-        element.addEventListener('open-external-url', function f(e) {
-          element.addEventListener('open-external-url', f);
-          e.preventDefault();
-          called = true;
-        });
-        element._openLink(url);
-        assert.isTrue(called);
-      });
-      test('The event has url', () => {
-        let detail;
-        element.addEventListener('open-external-url', function f(e) {
-          element.addEventListener('open-external-url', f);
-          e.preventDefault();
-          detail = e.detail;
-        });
-        element._openLink(url);
-        assert.equal(detail.url, url);
-      });
-    });
-
-    suite('_showPage()', () => {
-      let element;
-      setup(() => {
-        element = fixture('Manual');
-        element.page = 1;
-      });
-
-      test('Does nothing when target is not in the path', () => {
-        const ev = {
-          composedPath: () => []
-        };
-        element._showPage(ev);
-        assert.equal(element.page, 1);
-      });
-
-      test('Ignores non-elements', () => {
-        const ev = {
-          composedPath: () => [document.createTextNode('test')]
-        };
-        element._showPage(ev);
-        assert.equal(element.page, 1);
-      });
-
-      test('Sets page', () => {
-        const elm = document.createElement('span');
-        elm.dataset.page = 2;
-        const ev = {
-          composedPath: () => [elm]
-        };
-        element._showPage(ev);
-        assert.equal(element.page, 2);
+      element.updateSetting('a', 'b');
+      setTimeout(() => {
+        element.updateSetting('c', 'd');
       });
     });
   });
-  </script>
+
+  suite('__settingsUpdated()', function() {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    function fire(opts) {
+      opts = opts || {};
+      const e = new CustomEvent('settings-changed', {
+        bubbles: true,
+        cancelable: opts.cancelable === undefined ? false : opts.cancelable,
+        composed: true,
+        detail: {
+          name: 'a',
+          value: 'b'
+        }
+      });
+      (opts.node || document.body).dispatchEvent(e);
+    }
+
+    test('Does nothing when _settingsChanged() is not implemented', function() {
+      fire();
+      // no error
+    });
+
+    test('Does nothing for cancelable events', function() {
+      let called = false;
+      element._settingsChanged = function() {
+        called = true;
+      };
+      fire({
+        cancelable: true
+      });
+      assert.isFalse(called);
+    });
+
+    test('Does nothing when element is the source', function() {
+      let called = false;
+      element._settingsChanged = function() {
+        called = true;
+      };
+      fire({
+        node: element
+      });
+      assert.isFalse(called);
+    });
+
+    test('Calls _settingsChanged', function() {
+      let called = false;
+      element._settingsChanged = function(key, value) {
+        assert.equal(key, 'a');
+        assert.equal(value, 'b');
+        called = true;
+      };
+      fire();
+      assert.isTrue(called);
+    });
+  });
+
+  suite('loadSettings()', function() {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    function settingsFactory(e) {
+      e.preventDefault();
+      e.detail.result = Promise.resolve({test: true});
+    }
+
+    teardown(() => {
+      element.removeEventListener('settings-read', settingsFactory);
+    });
+
+    test('Rejects when event not handled', () => {
+      return element.loadSettings()
+      .then(() => {
+        throw new Error('Should not resolve.');
+      })
+      .catch((cause) => {
+        assert.notEqual(cause.message, 'Should not resolve.');
+      });
+    });
+
+    test('Calls _setSettings() with received values', () => {
+      element.addEventListener('settings-read', settingsFactory);
+      const spy = sinon.spy(element, '_setSettings');
+      return element.loadSettings()
+      .then(() => {
+        assert.isTrue(spy.called);
+        assert.deepEqual(spy.args[0][0], {test: true});
+      });
+    });
+  });
+
+  suite('back()', () => {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    test('Sets "page" to 0', () => {
+      element.page = 1;
+      element.back();
+      assert.equal(element.page, 0);
+    });
+  });
+
+  suite('_cancelEvent()', () => {
+    let element;
+    let ev;
+    setup(() => {
+      element = fixture('Manual');
+      ev = {
+        preventDefault: () => {},
+        stopPropagation: () => {}
+      };
+    });
+
+    test('Calls preventDefault()', () => {
+      const spy = sinon.spy(ev, 'preventDefault');
+      element._cancelEvent(ev);
+      assert.isTrue(spy.called);
+    });
+
+    test('Calls stopPropagation()', () => {
+      const spy = sinon.spy(ev, 'stopPropagation');
+      element._cancelEvent(ev);
+      assert.isTrue(spy.called);
+    });
+  });
+
+  suite('_openLink()', () => {
+    const url = 'http://domain.com';
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+    });
+
+    test('Dispatches open-external-url event', () => {
+      let called = false;
+      element.addEventListener('open-external-url', function f(e) {
+        element.addEventListener('open-external-url', f);
+        e.preventDefault();
+        called = true;
+      });
+      element._openLink(url);
+      assert.isTrue(called);
+    });
+    test('The event has url', () => {
+      let detail;
+      element.addEventListener('open-external-url', function f(e) {
+        element.addEventListener('open-external-url', f);
+        e.preventDefault();
+        detail = e.detail;
+      });
+      element._openLink(url);
+      assert.equal(detail.url, url);
+    });
+  });
+
+  suite('_showPage()', () => {
+    let element;
+    setup(() => {
+      element = fixture('Manual');
+      element.page = 1;
+    });
+
+    test('Does nothing when target is not in the path', () => {
+      const ev = {
+        composedPath: () => []
+      };
+      element._showPage(ev);
+      assert.equal(element.page, 1);
+    });
+
+    test('Ignores non-elements', () => {
+      const ev = {
+        composedPath: () => [document.createTextNode('test')]
+      };
+      element._showPage(ev);
+      assert.equal(element.page, 1);
+    });
+
+    test('Sets page', () => {
+      const elm = document.createElement('span');
+      elm.dataset.page = 2;
+      const ev = {
+        composedPath: () => [elm]
+      };
+      element._showPage(ev);
+      assert.equal(element.page, 2);
+    });
+  });
+});
+</script>
 </body>
 </html>
