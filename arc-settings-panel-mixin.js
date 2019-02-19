@@ -11,7 +11,7 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License.
 */
-import {dedupingMixin} from '../../@polymer/polymer/lib/utils/mixin.js';
+import {dedupingMixin} from '@polymer/polymer/lib/utils/mixin.js';
 /**
  * Components implementing this mixin are part of ARC settings panel.
  * After mixing it into the prototype the component gain access to common
